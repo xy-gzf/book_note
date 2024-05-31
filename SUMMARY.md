@@ -4,7 +4,7 @@
 
 ## mq
 
-* [Message Queue](<README (1).md>)
+* [Message Queue](mq/message-queue.md)
 * [Kafka](mq/kafka/README.md)
   * [Producer](mq/kafka/producer.md)
   * [Consumer](mq/kafka/consumer.md)
