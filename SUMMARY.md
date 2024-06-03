@@ -8,6 +8,7 @@
 * [Kafka](mq/kafka/README.md)
   * [Producer](mq/kafka/producer.md)
   * [Consumer](mq/kafka/consumer.md)
+  * [Topic Partition](mq/kafka/topic-partition.md)
   * [Log](mq/kafka/log.md)
   * [Explore Server](mq/kafka/explore-server.md)
   * [Explore Client](mq/kafka/explore-client.md)
