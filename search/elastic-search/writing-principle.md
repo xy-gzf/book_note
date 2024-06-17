@@ -16,7 +16,7 @@ description: 写入原理
 ES-making changes persistent
 {% endembed %}
 
-<figure><img src="../../.gitbook/assets/writing_principle.png" alt=""><figcaption><p>writing principle</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/es_writing_principle.png" alt=""><figcaption><p>writing principle</p></figcaption></figure>
 
 ### Translog <a href="#user-content-2-2-translog" id="user-content-2-2-translog"></a>
 

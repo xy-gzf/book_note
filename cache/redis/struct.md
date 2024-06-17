@@ -14,7 +14,7 @@ Redis 是使用了一个「哈希表」保存所有键值对，哈希表的最�
 
 哈希桶存放的是指向键值对数据的指针（dictEntry\*），这样通过指针就能找到键值对数据，然后因为键值对的值可以保存字符串对象和集合数据类型的对象，所以键值对的数据结构中并不是直接保存值本身，而是保存了 void \* key 和 void \* value 指针，分别指向了实际的键对象和值对象，这样一来，即使值是集合数据，也可以通过 void \* value 指针找到。
 
-<figure><img src="../../.gitbook/assets/redis-struct_key_value.webp" alt=""><figcaption><p>struct_key_value</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/redis_struct_key_value.webp" alt=""><figcaption><p>struct_key_value</p></figcaption></figure>
 
 * redisDb 结构，表示 Redis 数据库的结构，结构体里存放了指向了 dict 结构的指针；
 * dict 结构，结构体里存放了 2 个哈希表，正常情况下都是用「哈希表1」，「哈希表2」只有在 rehash 的时候才用；
@@ -27,7 +27,7 @@ Redis 是使用了一个「哈希表」保存所有键值对，哈希表的最�
 * encoding，标识该对象使用了哪种底层的数据结构；
 * **ptr，指向底层数据结构的指针**。
 
-<figure><img src="../../.gitbook/assets/redis-struct_object.webp" alt=""><figcaption><p>struct_object</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/redis_struct_object.webp" alt=""><figcaption><p>struct_object</p></figcaption></figure>
 
 ## SDS
 
