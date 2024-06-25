@@ -261,7 +261,7 @@ SDIFFSTORE destination key [key ...]
 
 集合的主要几个特性，无序、不可重复、支持并交差等操作。
 
-**点赞、共同关注、抽奖活动**
+**应用：点赞、共同关注、抽奖活动**
 
 ## Zset
 
@@ -355,3 +355,101 @@ BITPOS [key] [value]
 **应用：签到统计、判断用户登陆态、连续签到用户总数**
 
 ## HyperLogLog <a href="#hyperloglog" id="hyperloglog"></a>
+
+Redis HyperLogLog 是 Redis 2.8.9 版本新增的数据类型，是一种用于「统计基数」的数据集合类型，基数统计就是指统计一个集合中不重复的元素个数。但要注意，HyperLogLog 是统计规则是基于概率完成的，不是非常准确，标准误算率是 0.81%。
+
+所以，简单来说 HyperLogLog **提供不精确的去重计数**。
+
+HyperLogLog 的优点是，在输入元素的数量或者体积非常非常大时，计算基数所需的内存空间总是固定的、并且是很小的。
+
+在 Redis 里面，**每个 HyperLogLog 键只需要花费 12 KB 内存，就可以计算接近 `2^64` 个不同元素的基数**，和元素越多就越耗费内存的 Set 和 Hash 类型相比，HyperLogLog 就非常节省空间。
+
+### 常用命令及应用
+
+```sh
+# 添加指定元素到 HyperLogLog 中
+PFADD key element [element ...]
+
+# 返回给定 HyperLogLog 的基数估算值。
+PFCOUNT key [key ...]
+
+# 将多个 HyperLogLog 合并为一个 HyperLogLog
+PFMERGE destkey sourcekey [sourcekey ...]
+```
+
+**应用：百万级网页UV计数**
+
+注意，HyperLogLog 的统计规则是基于概率完成的，所以它给出的统计结果是有一定误差的，标准误算率是 0.81%
+
+## GEO
+
+Redis GEO 是 Redis 3.2 版本新增的数据类型，主要用于存储地理位置信息，并对存储的信息进行操作。
+
+在日常生活中，我们越来越依赖搜索“附近的餐馆”、在打车软件上叫车，这些都离不开基于位置信息服务（Location-Based Service，LBS）的应用。LBS 应用访问的数据是和人或物关联的一组经纬度信息，而且要能查询相邻的经纬度范围，GEO 就非常适合应用在 LBS 服务的场景中。
+
+### 内部实现
+
+GEO 本身并没有设计新的底层数据结构，而是直接使用了 Sorted Set 集合类型。
+
+GEO 类型使用 GeoHash 编码方法实现了经纬度到 Sorted Set 中元素权重分数的转换，这其中的两个关键机制就是「对二维地图做区间划分」和「对区间进行编码」。一组经纬度落在某个区间后，就用区间的编码值来表示，并把编码值作为 Sorted Set 元素的权重分数。
+
+### 常用命令及应用
+
+```sh
+# 存储指定的地理空间位置，可以将一个或多个经度(longitude)、纬度(latitude)、位置名称(member)添加到指定的 key 中。
+GEOADD key longitude latitude member [longitude latitude member ...]
+
+# 从给定的 key 里返回所有指定名称(member)的位置（经度和纬度），不存在的返回 nil。
+GEOPOS key member [member ...]
+
+# 返回两个给定位置之间的距离。
+GEODIST key member1 member2 [m|km|ft|mi]
+
+# 根据用户给定的经纬度坐标来获取指定范围内的地理位置集合。
+GEORADIUS key longitude latitude radius m|km|ft|mi [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count] [ASC|DESC] [STORE key] [STOREDIST key]
+```
+
+**应用：叫车**
+
+## Stream
+
+Redis Stream 是 Redis 5.0 版本新增加的数据类型，Redis 专门为消息队列设计的数据类型。
+
+在 Redis 5.0 Stream 没出来之前，消息队列的实现方式都有着各自的缺陷，例如：
+
+* 发布订阅模式，不能持久化也就无法可靠的保存消息，并且对于离线重连的客户端不能读取历史消息的缺陷；
+* List 实现消息队列的方式不能重复消费，一个消息消费完就会被删除，而且生产者需要自行实现全局唯一 ID。
+
+基于以上问题，Redis 5.0 便推出了 Stream 类型也是此版本最重要的功能，用于完美地实现消息队列，它支持消息的持久化、支持自动生成全局唯一 ID、支持 ack 确认消息的模式、支持消费组模式等，让消息队列更加的稳定和可靠。
+
+### 常见命令
+
+Stream 消息队列操作命令：
+
+* XADD：插入消息，保证有序，可以自动生成全局唯一 ID；
+* XLEN ：查询消息长度；
+* XREAD：用于读取消息，可以按 ID 读取数据；
+* XDEL ： 根据消息 ID 删除消息；
+* DEL ：删除整个 Stream；
+* XRANGE ：读取区间消息
+* XREADGROUP：按消费组形式读取消息；
+* XPENDING 和 XACK：
+  * XPENDING 命令可以用来查询每个消费组内所有消费者「已读取、但尚未确认」的消息；
+  * XACK 命令用于向消息队列确认消息处理已完成；
+
+### **特有功能及消息队列功能** <a href="#ying-yong-chang-jing-9" id="ying-yong-chang-jing-9"></a>
+
+Stream 可以以使用 **XGROUP 创建消费组**，创建消费组之后，Stream 可以使用 XREADGROUP 命令让消费组内的消费者读取消息。
+
+**消息队列中的消息一旦被消费组里的一个消费者读取了，就不能再被该消费组内的其他消费者读取了，即同一个消费组里的消费者不能消费同一条消息**。
+
+Streams 会自动使用内部队列（也称为 PENDING List）留存消费组里每个消费者读取的消息，直到消费者使用 XACK 命令通知 Streams“消息已经处理完成”。
+
+如果消费者没有成功处理消息，它就不会给 Streams 发送 XACK 命令，消息仍然会留存。此时，**消费者可以在重启后，用 XPENDING 命令查看已读取、但尚未确认处理完成的消息**。
+
+* 消息保序：XADD/XREAD
+* 阻塞读取：XREAD block
+* 重复消息处理：Stream 在使用 XADD 命令，会自动生成全局唯一 ID；
+* 消息可靠性：内部使用 PENDING List 自动保存消息，使用 XPENDING 命令查看消费组已经读取但是未被确认的消息，消费者使用 XACK 确认消息；
+* 支持消费组形式消费数据
+
