@@ -26,6 +26,7 @@
 * [Redis](cache/redis/README.md)
   * [Struct](cache/redis/struct.md)
   * [Object](cache/redis/object.md)
+  * [Persistence](cache/redis/persistence.md)
 
 ## utils
 
