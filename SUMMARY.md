@@ -27,6 +27,7 @@
   * [Struct](cache/redis/struct.md)
   * [Object](cache/redis/object.md)
   * [Persistence](cache/redis/persistence.md)
+  * [Expired Delete](cache/redis/expired-delete.md)
 
 ## utils
 
