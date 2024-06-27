@@ -28,6 +28,7 @@
   * [Object](cache/redis/object.md)
   * [Persistence](cache/redis/persistence.md)
   * [Expired Delete](cache/redis/expired-delete.md)
+  * [Memory Obsolescence](cache/redis/memory-obsolescence.md)
 
 ## utils
 
