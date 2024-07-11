@@ -32,7 +32,7 @@
 
 ## OS
 
-* [Process Thread](os/process-thread.md)
+* [Process](os/process.md)
 
 ## utils
 
