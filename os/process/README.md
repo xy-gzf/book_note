@@ -2,7 +2,7 @@
 description: 进程、线程
 ---
 
-# Process Thread
+# Process
 
 ## 进程
 
@@ -10,7 +10,7 @@ description: 进程、线程
 
 ### 进程的状态
 
-<figure><img src="../.gitbook/assets/os_process_status.webp" alt="" width="563"><figcaption><p>process_status</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/os_process_status.webp" alt="" width="563"><figcaption><p>process_status</p></figcaption></figure>
 
 ### 进程的控制结构
 
@@ -234,7 +234,7 @@ CPU 上下文切换就是先把前一个任务的 CPU 上下文（CPU 寄存器�
 * `N : 1`，即一个 LWP 对应多个用户线程；
 * `M : N`，即多个 LWP 对应多个用户线程；
 
-<figure><img src="../.gitbook/assets/os_thread_lwp_model.webp" alt=""><figcaption><p>thread_lwp_model</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/os_thread_lwp_model.webp" alt=""><figcaption><p>thread_lwp_model</p></figcaption></figure>
 
 **1 : 1 模式**
 
@@ -423,7 +423,7 @@ P 操作是用在进入共享资源之前，V 操作是用在离开共享资源�
 
 接下来，举个例子，如果要使得两个进程互斥访问共享内存，我们可以初始化信号量为 `1`。
 
-<figure><img src="../.gitbook/assets/os_process_communicate_semaphore_1.webp" alt=""><figcaption><p>process_communicate_semaphore_1</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/os_process_communicate_semaphore_1.webp" alt=""><figcaption><p>process_communicate_semaphore_1</p></figcaption></figure>
 
 具体的过程如下：
 
@@ -439,7 +439,7 @@ P 操作是用在进入共享资源之前，V 操作是用在离开共享资源�
 
 那么这时候，就可以用信号量来实现多进程同步的方式，我们可以初始化信号量为 `0`。
 
-<figure><img src="../.gitbook/assets/os_process_communicate_semaphore_2.webp" alt=""><figcaption><p>process_communicate_semaphore_2</p></figcaption></figure>
+<figure><img src="../../.gitbook/assets/os_process_communicate_semaphore_2.webp" alt=""><figcaption><p>process_communicate_semaphore_2</p></figcaption></figure>
 
 具体过程：
 

@@ -32,7 +32,9 @@
 
 ## OS
 
-* [Process](os/process.md)
+* [Process](os/process/README.md)
+  * [Thread](os/process/thread.md)
+  * [Lock](os/process/lock.md)
 
 ## utils
 
