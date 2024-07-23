@@ -35,6 +35,8 @@
 * [Process](os/process/README.md)
   * [Thread](os/process/thread.md)
   * [Lock](os/process/lock.md)
+* [Memory](os/memory/README.md)
+  * [Virtual Memory](os/memory/virtual-memory.md)
 
 ## utils
 
