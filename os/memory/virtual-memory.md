@@ -251,3 +251,271 @@ TLB 的命中率其实是很高的，因为程序最常访问的页就那么几�
 1. 就是前边提到的由高 16 位空闲地址造成的 canonical address 空洞。在这段范围内的虚拟内存地址是不合法的，因为它的高 16 位既不全为 0 也不全为 1，不是一个 canonical address，所以称之为 canonical address 空洞。
 2. 在代码段跟数据段的中间还有一段不可以读写的保护段，它的作用是防止程序在读写数据段的时候越界访问到代码段，这个保护段可以让越界访问行为直接崩溃，防止它继续往下运行。
 3. 用户态虚拟内存空间与内核态虚拟内存空间分别占用 128T，其中低128T 分配给用户态虚拟内存空间，高 128T 分配给内核态虚拟内存空间。
+
+### 进程虚拟内存管理
+
+无论是在 32 位机器上还是在 64 位机器上，进程虚拟内存空间的核心区域分布的相对位置是不变的，它们都包含下图所示的这几个核心内存区域。唯一不同的是这些核心内存区域在 32 位机器和 64 位机器上的绝对位置分布会有所不同。
+
+<figure><img src="../../.gitbook/assets/os_memory_process_core.webp" alt="" width="469"><figcaption><p>process_core_memory</p></figcaption></figure>
+
+内核如何为进程管理这些虚拟内存区域呢？
+
+进程在内核中的描述符 task\_struct 结构
+
+```c
+struct task_struct {
+        // 进程id
+	    pid_t				pid;
+        // 用于标识线程所属的进程 pid
+	    pid_t				tgid;
+        // 进程打开的文件信息
+        struct files_struct		*files;
+        // 内存描述符表示进程虚拟地址空间
+        struct mm_struct		*mm;
+
+        .......... 省略 .......
+}
+```
+
+在进程描述符 task\_struct 结构中，有一个专门描述进程虚拟地址空间的内存描述符 mm\_struct 结构，这个结构体中包含了进程虚拟内存空间的全部信息。
+
+每个进程都有唯一的 mm\_struct 结构体，也就是每个进程的虚拟地址空间都是独立，互不干扰的。
+
+当我们调用 fork() 函数创建进程的时候，表示进程地址空间的 mm\_struct 结构会随着进程描述符 task\_struct 的创建而创建。
+
+```c
+long _do_fork(unsigned long clone_flags,
+	      unsigned long stack_start,
+	      unsigned long stack_size,
+	      int __user *parent_tidptr,
+	      int __user *child_tidptr,
+	      unsigned long tls)
+{
+        ......... 省略 ..........
+	struct pid *pid;
+	struct task_struct *p;
+
+        ......... 省略 ..........
+    // 为进程创建 task_struct 结构，用父进程的资源填充 task_struct 信息
+	p = copy_process(clone_flags, stack_start, stack_size,
+			 child_tidptr, NULL, trace, tls, NUMA_NO_NODE);
+
+         ......... 省略 ..........
+}
+```
+
+随后会在 copy\_process 函数中创建 task\_struct 结构，并拷贝父进程的相关资源到新进程的 task\_struct 结构里，其中就包括拷贝父进程的虚拟内存空间 mm\_struct 结构。**这里可以看出子进程在新创建出来之后它的虚拟内存空间是和父进程的虚拟内存空间一模一样的，直接拷贝过来**。
+
+```c
+static __latent_entropy struct task_struct *copy_process(
+					unsigned long clone_flags,
+					unsigned long stack_start,
+					unsigned long stack_size,
+					int __user *child_tidptr,
+					struct pid *pid,
+					int trace,
+					unsigned long tls,
+					int node)
+{
+
+    struct task_struct *p;
+    // 创建 task_struct 结构
+    p = dup_task_struct(current, node);
+
+        ....... 初始化子进程 ...........
+
+        ....... 开始继承拷贝父进程资源  .......      
+    // 继承父进程打开的文件描述符
+	retval = copy_files(clone_flags, p);
+    // 继承父进程所属的文件系统
+	retval = copy_fs(clone_flags, p);
+    // 继承父进程注册的信号以及信号处理函数
+	retval = copy_sighand(clone_flags, p);
+	retval = copy_signal(clone_flags, p);
+    // 继承父进程的虚拟内存空间
+	retval = copy_mm(clone_flags, p);
+    // 继承父进程的 namespaces
+	retval = copy_namespaces(clone_flags, p);
+    // 继承父进程的 IO 信息
+	retval = copy_io(clone_flags, p);
+
+      ...........省略.........
+    // 分配 CPU
+    retval = sched_fork(clone_flags, p);
+    // 分配 pid
+    pid = alloc_pid(p->nsproxy->pid_ns_for_children);
+
+.     ..........省略.........
+}
+```
+
+这里我们重点关注 copy\_mm 函数，正是在这里完成了子进程虚拟内存空间 mm\_struct 结构的的创建以及初始化。
+
+```c
+static int copy_mm(unsigned long clone_flags, struct task_struct *tsk)
+{
+    // 子进程虚拟内存空间，父进程虚拟内存空间
+	struct mm_struct *mm, *oldmm;
+	int retval;
+
+        ...... 省略 ......
+
+	tsk->mm = NULL;
+	tsk->active_mm = NULL;
+    // 获取父进程虚拟内存空间
+	oldmm = current->mm;
+	if (!oldmm)
+		return 0;
+
+        ...... 省略 ......
+    // 通过 vfork 或者 clone 系统调用创建出的子进程（线程）和父进程共享虚拟内存空间
+	if (clone_flags & CLONE_VM) {
+        // 增加父进程虚拟地址空间的引用计数
+		mmget(oldmm);
+        // 直接将父进程的虚拟内存空间赋值给子进程（线程）
+        // 线程共享其所属进程的虚拟内存空间
+		mm = oldmm;
+		goto good_mm;
+	}
+
+	retval = -ENOMEM;
+    // 如果是 fork 系统调用创建出的子进程，则将父进程的虚拟内存空间以及相关页表拷贝到子进程中的 mm_struct 结构中。
+	mm = dup_mm(tsk);
+	if (!mm)
+		goto fail_nomem;
+
+good_mm:
+    // 将拷贝出来的父进程虚拟内存空间 mm_struct 赋值给子进程
+	tsk->mm = mm;
+	tsk->active_mm = mm;
+	return 0;
+
+        ...... 省略 ......
+```
+
+由于本小节中我们举的示例是通过 fork() 函数创建子进程的情形，所以这里先占时忽略 `if (clone_flags & CLONE_VM)` 这个条件判断逻辑，我们先跳过往后看\~\~
+
+copy\_mm 函数首先会将父进程的虚拟内存空间 current->mm 赋值给指针 oldmm。然后通过 dup\_mm 函数将父进程的虚拟内存空间以及**相关页表**拷贝到子进程的 mm\_struct 结构中。最后将拷贝出来的 mm\_struct 赋值给子进程的 task\_struct 结构。
+
+> 通过 fork() 函数创建出的子进程，它的虚拟内存空间以及相关页表相当于父进程虚拟内存空间的一份拷贝，直接从父进程中拷贝到子进程中。
+
+而当我们通过 vfork 或者 clone 系统调用创建出的子进程，首先会设置 CLONE\_VM 标识，这样来到 copy\_mm 函数中就会进入 `if (clone_flags & CLONE_VM)` 条件中，在这个分支中会将父进程的虚拟内存空间以及相关页表直接赋值给子进程。这样一来父进程和子进程的虚拟内存空间就变成共享的了。也就是说父子进程之间使用的虚拟内存空间是一样的，并不是一份拷贝。
+
+子进程共享了父进程的虚拟内存空间，这样子进程就变成了我们熟悉的线程，**是否共享地址空间几乎是进程和线程之间的本质区别。Linux 内核并不区别对待它们，线程对于内核来说仅仅是一个共享特定资源的进程而已**。
+
+内核线程和用户态线程的区别就是内核线程没有相关的内存描述符 mm\_struct ，内核线程对应的 task\_struct 结构中的 mm 域指向 Null，所以内核线程之间调度是不涉及地址空间切换的。
+
+当一个内核线程被调度时，它会发现自己的虚拟地址空间为 Null，虽然它不会访问用户态的内存，但是它会访问内核内存，聪明的内核会将调度之前的上一个用户态进程的虚拟内存空间 mm\_struct 直接赋值给内核线程，因为内核线程不会访问用户空间的内存，它仅仅只会访问内核空间的内存，所以直接复用上一个用户态进程的虚拟地址空间就可以避免为内核线程分配 mm\_struct 和相关页表的开销，以及避免内核线程之间调度时地址空间的切换开销。
+
+> 父进程与子进程的区别，进程与线程的区别，以及内核线程与用户态线程的区别其实都是围绕着这个 mm\_struct 展开的。
+
+#### 内核如何划分用户态和内核态虚拟内存空间 <a href="#id-51-nei-he-ru-he-hua-fen-yong-hu-tai-he-nei-he-tai-xu-ni-nei-cun-kong-jian" id="id-51-nei-he-ru-he-hua-fen-yong-hu-tai-he-nei-he-tai-xu-ni-nei-cun-kong-jian"></a>
+
+进程的内存描述符 mm\_struct 结构体中的 task\_size 变量，task\_size 定义了用户态地址空间与内核态地址空间之间的分界线。
+
+```c
+struct mm_struct {
+    unsigned long task_size;	/* size of task vm space */
+}
+```
+
+32 位系统中用户地址空间和内核地址空间的分界线在 0xC000 000 地址处，那么自然进程的 mm\_struct 结构中的 task\_size 为 0xC000 000。
+
+64 位系统中用户地址空间和内核地址空间的分界线在 0x0000 7FFF FFFF F000 地址处，那么自然进程的 mm\_struct 结构中的 task\_size 为 0x0000 7FFF FFFF F000 。
+
+#### 内核如何管理虚拟内存区域 <a href="#id-53-nei-he-ru-he-guan-li-xu-ni-nei-cun-qu-yu" id="id-53-nei-he-ru-he-guan-li-xu-ni-nei-cun-qu-yu"></a>
+
+结构体 vm\_area\_struct，这个结构体描述了这些虚拟内存区域 VMA（virtual memory area）。
+
+```c
+struct vm_area_struct {
+
+	unsigned long vm_start;		/* Our start address within vm_mm. */
+	unsigned long vm_end;		/* The first byte after our end address
+					   within vm_mm. */
+	/*
+	 * Access permissions of this VMA.
+	 */
+	pgprot_t vm_page_prot;
+	unsigned long vm_flags;	
+
+	struct anon_vma *anon_vma;	/* Serialized by page_table_lock */
+    struct file * vm_file;		/* File we map to (can be NULL). */
+	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
+					   units */	
+	void * vm_private_data;		/* was vm_pte (shared mem) */
+	/* Function pointers to deal with this struct. */
+	const struct vm_operations_struct *vm_ops;
+}
+```
+
+每个 vm\_area\_struct 结构对应于虚拟内存空间中的唯一虚拟内存区域 VMA，vm\_start 指向了这块虚拟内存区域的起始地址（最低地址），vm\_start 本身包含在这块虚拟内存区域内。vm\_end 指向了这块虚拟内存区域的结束地址（最高地址），而 vm\_end 本身包含在这块虚拟内存区域之外，所以 vm\_area\_struct 结构描述的是 \[vm\_start，vm\_end) 这样一段左闭右开的虚拟内存区域。
+
+<figure><img src="../../.gitbook/assets/os_memory_space_core_mgr.webp" alt="" width="563"><figcaption><p>space_core_mgr</p></figcaption></figure>
+
+### 程序编译后的二进制文件如何映射到虚拟内存空间中 <a href="#id-6-cheng-xu-bian-yi-hou-de-er-jin-zhi-wen-jian-ru-he-ying-she-dao-xu-ni-nei-cun-kong-jian-zhong" id="id-6-cheng-xu-bian-yi-hou-de-er-jin-zhi-wen-jian-ru-he-ying-she-dao-xu-ni-nei-cun-kong-jian-zhong"></a>
+
+我们写的程序代码编译之后会生成一个 ELF 格式的二进制文件，这个二进制文件中包含了程序运行时所需要的元信息，比如程序的机器码，程序中的全局变量以及静态变量等。
+
+这个 ELF 格式的二进制文件中的布局和我们前边讲的虚拟内存空间中的布局类似，也是一段一段的，每一段包含了不同的元数据。
+
+> 磁盘文件中的段我们叫做 Section，内存中的段我们叫做 Segment，也就是内存区域。
+
+磁盘文件中的这些 Section 会在进程运行之前加载到内存中并映射到内存中的 Segment。通常是多个 Section 映射到一个 Segment。
+
+那么这些 ELF 格式的二进制文件中的 Section 是如何加载并映射进虚拟内存空间的呢？
+
+内核中完成这个映射过程的函数是 load\_elf\_binary ，这个函数的作用很大，加载内核的是它，启动第一个用户态进程 init 的是它，fork 完了以后，调用 exec 运行一个二进制程序的也是它。当 exec 运行一个二进制程序的时候，除了解析 ELF 的格式之外，另外一个重要的事情就是建立上述提到的内存映射。
+
+```c
+static int load_elf_binary(struct linux_binprm *bprm)
+{
+      ...... 省略 ........
+  // 设置虚拟内存空间中的内存映射区域起始地址 mmap_base
+  setup_new_exec(bprm);
+
+     ...... 省略 ........
+  // 创建并初始化栈对应的 vm_area_struct 结构。
+  // 设置 mm->start_stack 就是栈的起始地址也就是栈底，并将 mm->arg_start 是指向栈底的。
+  retval = setup_arg_pages(bprm, randomize_stack_top(STACK_TOP),
+         executable_stack);
+
+     ...... 省略 ........
+  // 将二进制文件中的代码部分映射到虚拟内存空间中
+  error = elf_map(bprm->file, load_bias + vaddr, elf_ppnt,
+        elf_prot, elf_flags, total_size);
+
+     ...... 省略 ........
+ // 创建并初始化堆对应的的 vm_area_struct 结构
+ // 设置 current->mm->start_brk = current->mm->brk，设置堆的起始地址 start_brk，结束地址 brk。 起初两者相等表示堆是空的
+  retval = set_brk(elf_bss, elf_brk, bss_prot);
+
+     ...... 省略 ........
+  // 将进程依赖的动态链接库 .so 文件映射到虚拟内存空间中的内存映射区域
+  elf_entry = load_elf_interp(&loc->interp_elf_ex,
+              interpreter,
+              &interp_map_addr,
+              load_bias, interp_elf_phdata);
+
+     ...... 省略 ........
+  // 初始化内存描述符 mm_struct
+  current->mm->end_code = end_code;
+  current->mm->start_code = start_code;
+  current->mm->start_data = start_data;
+  current->mm->end_data = end_data;
+  current->mm->start_stack = bprm->p;
+
+     ...... 省略 ........
+}
+```
+
+* setup\_new\_exec 设置虚拟内存空间中的内存映射区域起始地址 mmap\_base
+* setup\_arg\_pages 创建并初始化栈对应的 vm\_area\_struct 结构。置 mm->start\_stack 就是栈的起始地址也就是栈底，并将 mm->arg\_start 是指向栈底的。
+* elf\_map 将 ELF 格式的二进制文件中.text ，.data，.bss 部分映射到虚拟内存空间中的代码段，数据段，BSS 段中。
+* set\_brk 创建并初始化堆对应的的 vm\_area\_struct 结构，设置 `current->mm->start_brk = current->mm->brk`，设置堆的起始地址 start\_brk，结束地址 brk。 起初两者相等表示堆是空的。
+* load\_elf\_interp 将进程依赖的动态链接库 .so 文件映射到虚拟内存空间中的内存映射区域
+* 初始化内存描述符 mm\_struct
+
+### 内核虚拟内存空间 <a href="#id-7-nei-he-xu-ni-nei-cun-kong-jian" id="id-7-nei-he-xu-ni-nei-cun-kong-jian"></a>
+
+不同进程之间的虚拟内存空间是相互隔离的，彼此之间相互独立，相互感知不到其他进程的存在。使得进程以为自己拥有所有的内存资源。而内核态虚拟内存空间是所有进程共享的，不同进程进入内核态之后看到的虚拟内存空间全部是一样的。
