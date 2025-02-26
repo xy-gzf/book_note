@@ -2,41 +2,36 @@
 
 * [Readme](README.md)
 
-## mq
-
-* [Message Queue](mq/message-queue.md)
-* [Kafka](mq/kafka/README.md)
-  * [Producer](mq/kafka/producer.md)
-  * [Consumer](mq/kafka/consumer.md)
-  * [Topic Partition](mq/kafka/topic-partition.md)
-  * [Log](mq/kafka/log.md)
-  * [Explore Server](mq/kafka/explore-server.md)
-  * [Explore Client](mq/kafka/explore-client.md)
-  * [Reliability](mq/kafka/reliability.md)
-* [Rabbit MQ](mq/rabbit-mq.md)
-
-## Search
-
-* [Elastic Search](search/elastic-search/README.md)
-  * [Sort](search/elastic-search/sort.md)
-  * [writing principle](search/elastic-search/writing-principle.md)
-
-## cache
-
-* [Redis](cache/redis/README.md)
-  * [Struct](cache/redis/struct.md)
-  * [Object](cache/redis/object.md)
-  * [Persistence](cache/redis/persistence.md)
-  * [Expired Delete](cache/redis/expired-delete.md)
-  * [Memory Obsolescence](cache/redis/memory-obsolescence.md)
-
-## OS
+## os
 
 * [Memory](os/memory/README.md)
   * [Virtual Memory](os/memory/virtual-memory.md)
 * [Process](os/process/README.md)
   * [Thread](os/process/thread.md)
   * [Lock](os/process/lock.md)
+
+## middleware
+
+* [Redis](middleware/redis/README.md)
+  * [Struct](middleware/redis/struct.md)
+  * [Object](middleware/redis/object.md)
+  * [Persistence](middleware/redis/persistence.md)
+  * [Expired Delete](middleware/redis/expired-delete.md)
+  * [Memory Obsolescence](middleware/redis/memory-obsolescence.md)
+* [MQ](middleware/mq/README.md)
+  * [Kafka](middleware/mq/kafka/README.md)
+    * [Producer](middleware/mq/kafka/producer.md)
+    * [Consumer](middleware/mq/kafka/consumer.md)
+    * [Topic Partition](middleware/mq/kafka/topic-partition.md)
+    * [Log](middleware/mq/kafka/log.md)
+    * [Explore Server](middleware/mq/kafka/explore-server.md)
+    * [Explore Client](middleware/mq/kafka/explore-client.md)
+    * [Reliability](middleware/mq/kafka/reliability.md)
+  * [Rabbit MQ](middleware/mq/rabbit-mq.md)
+* [ES](middleware/elastic-search/README.md)
+  * [Sort](middleware/elastic-search/sort.md)
+  * [Writing principle](middleware/elastic-search/writing-principle/README.md)
+    * [tuning](middleware/elastic-search/writing-principle/tuning.md)
 
 ## utils
 

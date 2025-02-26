@@ -1,6 +1,0 @@
----
-description: es
----
-
-# Elastic Search
-

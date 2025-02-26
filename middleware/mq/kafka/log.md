@@ -8,7 +8,7 @@ description: 日志存储
 
 ## 文件目录布局
 
-不考虑多副本的情况，一个分区对应一个**日志（Log）**。为了防止Log过大，kafka引入了**日志分段（LogSegment）**的概念，将Log切分为多个LogSegment。而Log和LogSegment也不是纯粹的物理意义。Log在物理上只以文件夹形式存储，每个LogSegment对应为磁盘上的一个日志文件和两个索引文件，以及可能的其他文件（如以".txnindex"为后缀的事务索引文件及 .swap .cleaned 等临时文件）。
+不考虑多副本的情况，一个分区对应一个**日志（Log）**。为了防止Log过大，kafka引入了**日志分段（LogSegment）**&#x7684;概念，将Log切分为多个LogSegment。而Log和LogSegment也不是纯粹的物理意义。Log在物理上只以文件夹形式存储，每个LogSegment对应为磁盘上的一个日志文件和两个索引文件，以及可能的其他文件（如以".txnindex"为后缀的事务索引文件及 .swap .cleaned 等临时文件）。
 
 **日志关系如下：**
 
@@ -17,7 +17,7 @@ description: 日志存储
     * Replica（副本）-> Log 日志
       * LogSegment 日志分段（.log .index .timeindex 其他文件）
 
-**文件内容：**向Log中追加消息是顺序写入，只有最后一个LogSegment才能执行写入操作，此LogSegment可以称为activeSegment。每个LogSegment都有一个基准偏移量baseOffset来表示当前LogSegment的第一条消息的offset。**.log 日志文件 .index 偏移量索引文件 .timeindex 时间戳索引文件**
+**文件内容：**&#x5411;Log中追加消息是顺序写入，只有最后一个LogSegment才能执行写入操作，此LogSegment可以称为activeSegment。每个LogSegment都有一个基准偏移量baseOffset来表示当前LogSegment的第一条消息的offset。**.log 日志文件 .index 偏移量索引文件 .timeindex 时间戳索引文件**
 
 **偏移量**是一个64位的长整型数，日志文件及两个索引文件都是基于baseOffset命名，名称固定为20位数字，没有达到则用0填充。
 
