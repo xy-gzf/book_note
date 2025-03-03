@@ -18,6 +18,7 @@
   * [Persistence](middleware/redis/persistence.md)
   * [Expired Delete](middleware/redis/expired-delete.md)
   * [Memory Obsolescence](middleware/redis/memory-obsolescence.md)
+  * [Apply](middleware/redis/apply.md)
 * [MQ](middleware/mq/README.md)
   * [Kafka](middleware/mq/kafka/README.md)
     * [Producer](middleware/mq/kafka/producer.md)
