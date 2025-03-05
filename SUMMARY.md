@@ -30,9 +30,11 @@
     * [Reliability](middleware/mq/kafka/reliability.md)
   * [Rabbit MQ](middleware/mq/rabbit-mq.md)
 * [ES](middleware/elastic-search/README.md)
+  * [Index](middleware/elastic-search/index.md)
   * [Sort](middleware/elastic-search/sort.md)
   * [Writing principle](middleware/elastic-search/writing-principle/README.md)
     * [tuning](middleware/elastic-search/writing-principle/tuning.md)
+  * [Other](middleware/elastic-search/other.md)
 
 ## utils
 
