@@ -6,7 +6,42 @@ description: 写入原理
 
 ## 写入过程
 
+### ES支持四种对文档的数据写操作 <a href="#usercontent11es-zhi-chi-si-zhong-dui-wen-dang-de-shu-ju-xie-cao-zuo" id="usercontent11es-zhi-chi-si-zhong-dui-wen-dang-de-shu-ju-xie-cao-zuo"></a>
 
+* create：如果在PUT数据的时候当前数据已经存在，则数据会被覆盖，如果在PUT的时候加上操作类型create，此时如果数据已存在则会返回失败，因为已经强制指定了操作类型为create，ES就不会再去执行update操作。比如：PUT /pruduct/\_create/1/ （ 老版本的语法为 PUT /pruduct/\_doc/1/\_create ）指的就是在索引product中强制创建id为1的数据，如果id为1的数据已存在，则返回失败。
+* delete：删除文档，ES对文档的删除是懒删除机制，即标记删除。
+* index：在ES中，写入操作被称为Index，这里Index为动词，即索引数据为将数据创建在ES中的索引，后面章节中均称之为“索引数据”。
+* update：执行partial update（全量替换，部分替换）
+
+### 写流程
+
+ES中的数据写入均发生在Primary Shard，当数据在Primary写入完成之后会同步到相应的Replica Shard。下图演示了单条数据写入ES的流程
+
+<figure><img src="../../../.gitbook/assets/es单条数据写入.png" alt="" width="563"><figcaption><p>es单条数据写入流程</p></figcaption></figure>
+
+以下为数据写入的步骤：
+
+1. 客户端发起写入请求至node 4
+2. node 4通过文档 id 在路由表中的映射信息确定当前数据的位置为分片0，分片0的主分片位于node 5，并将数据转发至node 5。
+3. 数据在node 5写入，写入成功之后将数据的同步请求转发至其副本所在的node 4和node 6上面，等待所有副本数据写入成功之后node 5将结果报告node 4，并由node 4将结果返回给客户端，报告数据写入成功。
+
+在这个过程中，接收用户请求的节点是不固定的，上述例子中，node 4 发挥了协调节点和客户端节点的作用，将数据转发至对应节点和接收以及返回用户请求。
+
+数据在由 node4 转发至 node5的时候，是通过以下公式来计算，指定的文档具体在那个分片的
+
+```
+shard_num = hash(_routing) % num_primary_shards
+```
+
+其中，\_routing 的默认值是文档的 id。
+
+### 写一致性策略
+
+ES 5.x 之后，一致性策略由 `wait_for_active_shards` 参数控制：
+
+即确定客户端返回数据之前必须处于active 的分片分片数（包括主分片和副本），默认为 wait\_for\_active\_shards = 1，即只需要主分片写入成功，设置为 `all`或任何正整数，最大值为索引中的分片总数 ( `number_of_replicas + 1` )。如果当前 active 状态的副本没有达到设定阈值，写操作必须等待并且重试，默认等待时间30秒，直到 active 状态的副本数量超过设定的阈值或者超时返回失败为止。
+
+执行索引操作时，分配给执行索引操作的主分片可能不可用。造成这种情况的原因可能是主分片当前正在从网关恢复或正在进行重定位。默认情况下，索引操作将在主分片上等待最多 1 分钟，然后才会失败并返回错误。
 
 ## 写入原理
 
